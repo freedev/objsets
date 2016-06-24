@@ -53,6 +53,8 @@ abstract class TweetSet {
    */
   def reduce(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet
 
+  def toTweetList(p: Tweet => Boolean, acc: TweetList) : TweetList
+  
   /**
    * Returns a new `TweetSet` that is the union of `TweetSet`s `this` and `that`.
    *
@@ -119,6 +121,8 @@ class Empty extends TweetSet {
   
   def reduce(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet = acc
   
+  def toTweetList(p: Tweet => Boolean, acc: TweetList) : TweetList = acc
+
   def union(that: TweetSet): TweetSet = that
   
   def mostRetweeted: Tweet = throw new java.util.NoSuchElementException("Empty")
@@ -158,20 +162,24 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
     } else
       this.right.reduce(p, this.left.reduce(p, acc))
   }
-  
+
+  def toTweetList(p: Tweet => Boolean, acc: TweetList): TweetList = {
+    if (p(elem))
+      new Cons(elem, this.right.toTweetList(p, this.left.toTweetList(p, acc)))
+    else
+      this.right.toTweetList(p, this.left.toTweetList(p, acc))
+  }
+
   def union(that: TweetSet): TweetSet = {
     filterAcc(p => true, this).filterAcc(p => true, that)
   }
 
   def mostRetweeted: Tweet = reduce((a: Tweet, b: Tweet) => { (a.retweets >  b.retweets) } , new Tweet("", "", 0))
 
-  def descendingByRetweet: TweetList = Nil
-//  {
-//    def iter(a: TweetSet, acc: TweetList): TweetList = {
-//      
-//    }
-//    iter(this.right, iter(this.left, new Cons(elem, Nil)))
-//  }
+  def descendingByRetweet: TweetList =
+  {
+    toTweetList(p => true, Nil)
+  }
 
   /**
    * The following methods are already implemented
@@ -228,14 +236,14 @@ object GoogleVsApple {
   val google = List("android", "Android", "galaxy", "Galaxy", "nexus", "Nexus")
   val apple = List("ios", "iOS", "iphone", "iPhone", "ipad", "iPad")
 
-    lazy val googleTweets: TweetSet = ???
-  lazy val appleTweets: TweetSet = ???
+    lazy val googleTweets: TweetSet = new Empty
+  lazy val appleTweets: TweetSet = new Empty
   
   /**
    * A list of all tweets mentioning a keyword from either apple or google,
    * sorted by the number of retweets.
    */
-     lazy val trending: TweetList = ???
+     lazy val trending: TweetList = Nil
   }
 
 object Main extends App {
