@@ -135,14 +135,14 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
   }
   
   def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet =  {
-      if (p(elem)) {
-        this.right.filterAcc(p, this.left.filterAcc(p, acc.incl(elem)))
-      } else
-        this.right.filterAcc(p, this.left.filterAcc(p, acc))
-    }
+    if (p(elem)) {
+      this.right.filterAcc(p, this.left.filterAcc(p, acc.incl(elem)))
+    } else
+      this.right.filterAcc(p, this.left.filterAcc(p, acc))
+  }
   
   def union(that: TweetSet): TweetSet = {
-    filterAcc( p => true, this).filterAcc( p => true, that)
+    filterAcc(p => true, this).filterAcc(p => true, that)
   }
     
   /**
