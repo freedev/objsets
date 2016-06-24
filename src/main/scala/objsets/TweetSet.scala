@@ -49,6 +49,11 @@ abstract class TweetSet {
   def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet 
 
   /**
+   * This is a helper method for `filter` that propagates the accumulated tweets.
+   */
+  def reduce(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet
+
+  /**
    * Returns a new `TweetSet` that is the union of `TweetSet`s `this` and `that`.
    *
    * Question: Should we implement this method here, or should it remain abstract
@@ -65,7 +70,7 @@ abstract class TweetSet {
    * Question: Should we implement this method here, or should it remain abstract
    * and be implemented in the subclasses?
    */
-    def mostRetweeted: Tweet = ???
+    def mostRetweeted: Tweet
   
   /**
    * Returns a list containing all tweets of this set, sorted by retweet count
@@ -73,10 +78,10 @@ abstract class TweetSet {
    * have the highest retweet count.
    *
    * Hint: the method `remove` on TweetSet will be very useful.
-   * Question: Should we implment this method here, or should it remain abstract
+   * Question: Should we implement this method here, or should it remain abstract
    * and be implemented in the subclasses?
    */
-    def descendingByRetweet: TweetList = ???
+    def descendingByRetweet: TweetList
   
   /**
    * The following methods are already implemented
@@ -112,7 +117,13 @@ class Empty extends TweetSet {
 
   def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = acc
   
+  def reduce(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet = acc
+  
   def union(that: TweetSet): TweetSet = that
+  
+  def mostRetweeted: Tweet = throw new java.util.NoSuchElementException("Empty")
+  
+  def descendingByRetweet: TweetList = Nil
   /**
    * The following methods are already implemented
    */
@@ -134,17 +145,34 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
       filterAcc(p, new Empty)
   }
   
-  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet =  {
+  def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = {
     if (p(elem)) {
       this.right.filterAcc(p, this.left.filterAcc(p, acc.incl(elem)))
     } else
       this.right.filterAcc(p, this.left.filterAcc(p, acc))
   }
   
+  def reduce(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet = {
+    if (p(elem, acc)) {
+      this.right.reduce(p, this.left.reduce(p, elem))
+    } else
+      this.right.reduce(p, this.left.reduce(p, acc))
+  }
+  
   def union(that: TweetSet): TweetSet = {
     filterAcc(p => true, this).filterAcc(p => true, that)
   }
-    
+
+  def mostRetweeted: Tweet = reduce((a: Tweet, b: Tweet) => { (a.retweets >  b.retweets) } , new Tweet("", "", 0))
+
+  def descendingByRetweet: TweetList = Nil
+//  {
+//    def iter(a: TweetSet, acc: TweetList): TweetList = {
+//      
+//    }
+//    iter(this.right, iter(this.left, new Cons(elem, Nil)))
+//  }
+
   /**
    * The following methods are already implemented
    */
