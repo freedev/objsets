@@ -51,9 +51,13 @@ abstract class TweetSet {
   /**
    * This is a helper method for `filter` that propagates the accumulated tweets.
    */
-  def reduce(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet
+  def reduce(p: (Tweet, Tweet) => Boolean): Tweet
 
+  def iter(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet
+  
   def toTweetList(p: Tweet => Boolean, acc: TweetList) : TweetList
+  
+  def isEmpty() : Boolean
   
   /**
    * Returns a new `TweetSet` that is the union of `TweetSet`s `this` and `that`.
@@ -118,8 +122,10 @@ class Empty extends TweetSet {
   def filter(p: Tweet => Boolean): TweetSet = new Empty
 
   def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = acc
+
+  def iter(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet = acc
   
-  def reduce(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet = acc
+  def reduce(p: (Tweet, Tweet) => Boolean): Tweet = throw new java.util.NoSuchElementException("Empty")
   
   def toTweetList(p: Tweet => Boolean, acc: TweetList) : TweetList = acc
 
@@ -131,6 +137,7 @@ class Empty extends TweetSet {
   /**
    * The following methods are already implemented
    */
+  def isEmpty() : Boolean = true
 
   def contains(tweet: Tweet): Boolean = false
 
@@ -155,13 +162,20 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
     } else
       this.right.filterAcc(p, this.left.filterAcc(p, acc))
   }
-  
-  def reduce(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet = {
-    if (p(elem, acc)) {
-      this.right.reduce(p, this.left.reduce(p, elem))
+
+  def iter(p: (Tweet, Tweet) => Boolean, acc: Tweet): Tweet = {
+    if (isEmpty())
+        acc
+    else if (p(elem, acc)) {
+      this.right.iter(p, this.left.iter(p, elem))
     } else
-      this.right.reduce(p, this.left.reduce(p, acc))
+      this.right.iter(p, this.left.iter(p, acc))
   }
+
+  def reduce(p: (Tweet, Tweet) => Boolean): Tweet = {
+    this.right.iter(p, this.left.iter(p, elem))
+  }
+  
 
   def toTweetList(p: Tweet => Boolean, acc: TweetList): TweetList = {
     if (p(elem))
@@ -174,12 +188,22 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
     filterAcc(p => true, this).filterAcc(p => true, that)
   }
 
-  def mostRetweeted: Tweet = reduce((a: Tweet, b: Tweet) => { (a.retweets >  b.retweets) } , new Tweet("", "", 0))
+  def mostRetweeted: Tweet = reduce((a: Tweet, b: Tweet) => { (a.retweets >  b.retweets) })
 
   def descendingByRetweet: TweetList =
   {
-    toTweetList(p => true, Nil)
+    def iterate(set: TweetSet, acc: TweetList): TweetList = {
+      if (set.isEmpty())
+        acc
+      else {
+        val t = set.reduce((a: Tweet, b: Tweet) => { (a.retweets <  b.retweets) })
+        iterate(set.remove(t), new Cons(t, acc))
+      }
+    }
+    iterate(this, Nil)
   }
+
+  def isEmpty() : Boolean = false
 
   /**
    * The following methods are already implemented
@@ -236,14 +260,14 @@ object GoogleVsApple {
   val google = List("android", "Android", "galaxy", "Galaxy", "nexus", "Nexus")
   val apple = List("ios", "iOS", "iphone", "iPhone", "ipad", "iPad")
 
-    lazy val googleTweets: TweetSet = new Empty
-  lazy val appleTweets: TweetSet = new Empty
+  lazy val googleTweets: TweetSet = TweetReader.allTweets.filter { a: Tweet => (a.text.contains(google)) }
+  lazy val appleTweets: TweetSet = TweetReader.allTweets.filter { a: Tweet => (a.text.contains(apple)) }
   
   /**
    * A list of all tweets mentioning a keyword from either apple or google,
    * sorted by the number of retweets.
    */
-     lazy val trending: TweetList = Nil
+     lazy val trending: TweetList = googleTweets.union(appleTweets).toTweetList(p => true, Nil)
   }
 
 object Main extends App {
